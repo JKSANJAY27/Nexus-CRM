@@ -1,5 +1,4 @@
 const BaseRepository = require('./BaseRepository');
-const pool = require('../../config/database');
 
 class UserRepository extends BaseRepository {
   constructor() {
@@ -7,7 +6,7 @@ class UserRepository extends BaseRepository {
   }
 
   async findByEmail(email, tenantId) {
-    const sql = `SELECT * FROM users WHERE email = $1 AND tenant_id = $2`;
+    const sql = `SELECT * FROM users WHERE email = ? AND tenant_id = ?`;
     const result = await this.query(sql, [email, tenantId]);
     return result.rows[0] || null;
   }

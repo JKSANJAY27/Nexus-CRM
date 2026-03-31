@@ -15,7 +15,7 @@ class ActivityRepository extends BaseRepository {
       LEFT JOIN users    u ON u.id = a.created_by  AND u.tenant_id = a.tenant_id
       LEFT JOIN deals    d ON d.id = a.deal_id      AND d.tenant_id = a.tenant_id
       LEFT JOIN contacts c ON c.id = a.contact_id   AND c.tenant_id = a.tenant_id
-      WHERE a.tenant_id = $1
+      WHERE a.tenant_id = ?
       ORDER BY a.created_at DESC
     `;
     const result = await this.query(sql, [tenantId]);
@@ -28,7 +28,7 @@ class ActivityRepository extends BaseRepository {
              u.name AS created_by_name
       FROM activities a
       LEFT JOIN users u ON u.id = a.created_by AND u.tenant_id = a.tenant_id
-      WHERE a.tenant_id = $1 AND a.deal_id = $2
+      WHERE a.tenant_id = ? AND a.deal_id = ?
       ORDER BY a.created_at DESC
     `;
     const result = await this.query(sql, [tenantId, dealId]);
@@ -45,9 +45,9 @@ class ActivityRepository extends BaseRepository {
       LEFT JOIN users    u ON u.id = a.created_by  AND u.tenant_id = a.tenant_id
       LEFT JOIN deals    d ON d.id = a.deal_id      AND d.tenant_id = a.tenant_id
       LEFT JOIN contacts c ON c.id = a.contact_id   AND c.tenant_id = a.tenant_id
-      WHERE a.tenant_id = $1
+      WHERE a.tenant_id = ?
       ORDER BY a.created_at DESC
-      LIMIT $2
+      LIMIT ?
     `;
     const result = await this.query(sql, [tenantId, limit]);
     return result.rows;

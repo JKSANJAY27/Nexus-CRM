@@ -6,7 +6,7 @@ class DealRepository extends BaseRepository {
   }
 
   async findByStage(tenantId, stage) {
-    return this.findAll(tenantId, 'AND stage = $2', [stage]);
+    return this.findAll(tenantId, 'AND stage = ?', [stage]);
   }
 
   async findWithContactInfo(tenantId) {
@@ -19,7 +19,7 @@ class DealRepository extends BaseRepository {
       FROM deals d
       LEFT JOIN contacts c ON c.id = d.contact_id AND c.tenant_id = d.tenant_id
       LEFT JOIN users   u ON u.id = d.assigned_to  AND u.tenant_id = d.tenant_id
-      WHERE d.tenant_id = $1
+      WHERE d.tenant_id = ?
       ORDER BY d.created_at DESC
     `;
     const result = await this.query(sql, [tenantId]);
@@ -32,7 +32,7 @@ class DealRepository extends BaseRepository {
              COUNT(*)               AS count,
              COALESCE(SUM(value), 0) AS total_value
       FROM deals
-      WHERE tenant_id = $1
+      WHERE tenant_id = ?
       GROUP BY stage
       ORDER BY stage
     `;
@@ -41,7 +41,7 @@ class DealRepository extends BaseRepository {
   }
 
   async findByContact(tenantId, contactId) {
-    return this.findAll(tenantId, 'AND contact_id = $2', [contactId]);
+    return this.findAll(tenantId, 'AND contact_id = ?', [contactId]);
   }
 }
 

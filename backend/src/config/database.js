@@ -1,22 +1,56 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
+const path = require('path');
 
-const sslConfig = process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {};
+let dbPromise = null;
 
-const pool = new Pool({
-  host:     process.env.DB_HOST     || 'localhost',
-  port:     parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME     || 'nexus_crm',
-  user:     process.env.DB_USER     || 'postgres',
-  password: process.env.DB_PASSWORD || '',
-  max:      20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ...sslConfig,
-});
+const getDb = () => {
+  if (!dbPromise) {
+    dbPromise = open({
+      filename: path.join(__dirname, '../../nexus_crm.sqlite'),
+      driver: sqlite3.Database
+    });
+  }
+  return dbPromise;
+};
 
-pool.on('error', (err) => {
-  console.error('Unexpected DB pool error', err);
-});
+// Enable foreign keys for SQLite
+const enableForeignKeys = async (db) => {
+  await db.exec('PRAGMA foreign_keys = ON;');
+};
+
+const pool = {
+  connect: async () => {
+    const db = await getDb();
+    await enableForeignKeys(db);
+    return {
+      query: async (sql, params = []) => {
+        try {
+          if (sql.trim().toUpperCase().startsWith('BEGIN') || 
+              sql.trim().toUpperCase().startsWith('COMMIT') || 
+              sql.trim().toUpperCase().startsWith('ROLLBACK')) {
+            await db.run(sql);
+            return { rows: [] };
+          }
+          const rows = await db.all(sql, params);
+          return { rows: rows || [] };
+        } catch (err) {
+          throw err;
+        }
+      },
+      release: () => {},
+    };
+  },
+  query: async (sql, params = []) => {
+    const db = await getDb();
+    await enableForeignKeys(db);
+    const rows = await db.all(sql, params);
+    return { rows: rows || [] };
+  },
+  end: async () => {
+    const db = await getDb();
+    await db.close();
+  }
+};
 
 module.exports = pool;

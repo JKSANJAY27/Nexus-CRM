@@ -6,13 +6,13 @@ const errorHandler = (err, req, res, next) => {
     return res.status(400).json({ error: err.message, details: err.details });
   }
 
-  // PostgreSQL unique violation
-  if (err.code === '23505') {
+  // SQLite / PostgreSQL unique violation
+  if (err.code === '23505' || (err.code === 'SQLITE_CONSTRAINT' && err.message.includes('UNIQUE'))) {
     return res.status(409).json({ error: 'Resource already exists' });
   }
 
-  // PostgreSQL foreign key violation
-  if (err.code === '23503') {
+  // SQLite / PostgreSQL foreign key violation
+  if (err.code === '23503' || (err.code === 'SQLITE_CONSTRAINT' && err.message.includes('FOREIGN KEY'))) {
     return res.status(400).json({ error: 'Referenced resource not found' });
   }
 

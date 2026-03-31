@@ -6,17 +6,17 @@ class ContactRepository extends BaseRepository {
   }
 
   async findByStatus(tenantId, status) {
-    return this.findAll(tenantId, 'AND status = $2', [status]);
+    return this.findAll(tenantId, 'AND status = ?', [status]);
   }
 
   async searchContacts(tenantId, searchTerm) {
     const sql = `
       SELECT * FROM contacts
-      WHERE tenant_id = $1
-        AND (name ILIKE $2 OR email ILIKE $2 OR company ILIKE $2)
+      WHERE tenant_id = ?
+        AND (name LIKE ? OR email LIKE ? OR company LIKE ?)
       ORDER BY name ASC
     `;
-    const result = await this.query(sql, [tenantId, `%${searchTerm}%`]);
+    const result = await this.query(sql, [tenantId, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]);
     return result.rows;
   }
 
@@ -27,7 +27,7 @@ class ContactRepository extends BaseRepository {
              COALESCE(SUM(d.value), 0) AS total_deal_value
       FROM contacts c
       LEFT JOIN deals d ON d.contact_id = c.id AND d.tenant_id = c.tenant_id
-      WHERE c.tenant_id = $1
+      WHERE c.tenant_id = ?
       GROUP BY c.id
       ORDER BY c.created_at DESC
     `;

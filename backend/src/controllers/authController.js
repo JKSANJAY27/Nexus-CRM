@@ -2,6 +2,7 @@ const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 const pool     = require('../config/database');
 const userRepo = require('../db/repository/UserRepository');
+const { v4: uuidv4 } = require('uuid');
 
 const signToken = (userId, tenantId, role) =>
   jwt.sign(
@@ -19,9 +20,10 @@ const registerTenant = async (req, res, next) => {
     await client.query('BEGIN');
 
     // 1. Create the tenant
+    const t_id = uuidv4();
     const tenantRes = await client.query(
-      `INSERT INTO tenants (name, slug) VALUES ($1, $2) RETURNING *`,
-      [companyName.trim(), slug.toLowerCase().trim()]
+      `INSERT INTO tenants (id, name, slug) VALUES (?, ?, ?) RETURNING *`,
+      [t_id, companyName.trim(), slug.toLowerCase().trim()]
     );
     const tenant = tenantRes.rows[0];
 
@@ -30,10 +32,11 @@ const registerTenant = async (req, res, next) => {
     const passwordHash = await bcrypt.hash(adminPassword, rounds);
 
     // 3. Create admin user for this tenant
+    const u_id = uuidv4();
     const userRes = await client.query(
-      `INSERT INTO users (tenant_id, email, password_hash, name, role)
-       VALUES ($1, $2, $3, $4, 'admin') RETURNING id, email, name, role`,
-      [tenant.id, adminEmail.toLowerCase().trim(), passwordHash, adminName.trim()]
+      `INSERT INTO users (id, tenant_id, email, password_hash, name, role)
+       VALUES (?, ?, ?, ?, ?, 'admin') RETURNING id, email, name, role`,
+      [u_id, tenant.id, adminEmail.toLowerCase().trim(), passwordHash, adminName.trim()]
     );
     const user = userRes.rows[0];
 
@@ -60,7 +63,7 @@ const login = async (req, res, next) => {
     const { email, password, slug } = req.body;
 
     // Find tenant by slug
-    const tenantRes = await pool.query(`SELECT * FROM tenants WHERE slug = $1`, [slug.toLowerCase().trim()]);
+    const tenantRes = await pool.query(`SELECT * FROM tenants WHERE slug = ?`, [slug.toLowerCase().trim()]);
     if (!tenantRes.rows[0]) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
