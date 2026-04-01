@@ -1,5 +1,4 @@
 const pool = require('../../config/database');
-const { v4: uuidv4 } = require('uuid');
 
 class BaseRepository {
   constructor(tableName) {
@@ -8,20 +7,14 @@ class BaseRepository {
   }
 
   async query(sql, params = []) {
-    const client = await this.pool.connect();
-    try {
-      const result = await client.query(sql, params);
-      return result;
-    } finally {
-      client.release();
-    }
+    return this.pool.query(sql, params);
   }
 
   async findAll(tenantId, extraWhere = '', extraParams = [], orderBy = 'created_at DESC') {
     if (!tenantId) throw new Error('tenant_id is required for all queries');
     const sql = `
       SELECT * FROM ${this.tableName}
-      WHERE tenant_id = ?
+      WHERE tenant_id = $1
       ${extraWhere}
       ORDER BY ${orderBy}
     `;
@@ -31,23 +24,17 @@ class BaseRepository {
 
   async findById(id, tenantId) {
     if (!tenantId) throw new Error('tenant_id is required for all queries');
-    const sql = `
-      SELECT * FROM ${this.tableName}
-      WHERE id = ? AND tenant_id = ?
-    `;
+    const sql = `SELECT * FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2`;
     const result = await this.query(sql, [id, tenantId]);
     return result.rows[0] || null;
   }
 
   async create(tenantId, data) {
     if (!tenantId) throw new Error('tenant_id is required for all queries');
-
-    // SQLite auto-inject logic with UIID natively from node
-    const fullData = { id: uuidv4(), tenant_id: tenantId, ...data };
-
+    const fullData = { tenant_id: tenantId, ...data };
     const columns = Object.keys(fullData);
     const values  = Object.values(fullData);
-    const placeholders = values.map(() => `?`).join(', ');
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
 
     const sql = `
       INSERT INTO ${this.tableName} (${columns.join(', ')})
@@ -60,19 +47,17 @@ class BaseRepository {
 
   async update(id, tenantId, data) {
     if (!tenantId) throw new Error('tenant_id is required for all queries');
-
     const { tenant_id: _stripped, ...safeData } = data;
-
     const columns = Object.keys(safeData);
     if (columns.length === 0) return this.findById(id, tenantId);
 
-    const setClause = columns.map(col => `${col} = ?`).join(', ');
-    const values    = Object.values(safeData);
+    const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
+    const values = Object.values(safeData);
 
     const sql = `
       UPDATE ${this.tableName}
       SET ${setClause}
-      WHERE id = ? AND tenant_id = ?
+      WHERE id = $${values.length + 1} AND tenant_id = $${values.length + 2}
       RETURNING *
     `;
     const result = await this.query(sql, [...values, id, tenantId]);
@@ -81,11 +66,7 @@ class BaseRepository {
 
   async delete(id, tenantId) {
     if (!tenantId) throw new Error('tenant_id is required for all queries');
-    const sql = `
-      DELETE FROM ${this.tableName}
-      WHERE id = ? AND tenant_id = ?
-      RETURNING id
-    `;
+    const sql = `DELETE FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2 RETURNING id`;
     const result = await this.query(sql, [id, tenantId]);
     return result.rows[0] || null;
   }
@@ -94,7 +75,7 @@ class BaseRepository {
     if (!tenantId) throw new Error('tenant_id is required for all queries');
     const sql = `
       SELECT COUNT(*) as total FROM ${this.tableName}
-      WHERE tenant_id = ? ${extraWhere}
+      WHERE tenant_id = $1 ${extraWhere}
     `;
     const result = await this.query(sql, [tenantId, ...extraParams]);
     return parseInt(result.rows[0].total, 10);
