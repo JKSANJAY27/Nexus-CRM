@@ -16,11 +16,20 @@ const errorHandler     = require('./middleware/errorHandler');
 const app = express();
 
 // ── CORS ─────────────────────────────────────────────────────────────
-const origins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+const rawOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:3000';
+const origins = rawOrigins.split(',').map(o => o.trim().replace(/\/$/, ''));
+
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || origins.includes(origin)) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return cb(null, true);
+    
+    if (origins.includes(origin)) {
+      cb(null, true);
+    } else {
+      console.warn(`CORS blocked request from origin: ${origin}`);
+      cb(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
 }));
