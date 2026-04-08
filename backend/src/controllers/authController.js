@@ -10,10 +10,10 @@ const signToken = (userId, tenantId, role) =>
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 
-// POST /auth/register-tenant
 const registerTenant = async (req, res, next) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const { companyName, slug, adminName, adminEmail, adminPassword } = req.body;
 
     await client.query('BEGIN');
@@ -47,10 +47,10 @@ const registerTenant = async (req, res, next) => {
       user:   { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK');
     next(err);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
