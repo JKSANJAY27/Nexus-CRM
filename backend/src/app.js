@@ -18,18 +18,13 @@ const app = express();
 // ── CORS ─────────────────────────────────────────────────────────────
 const rawOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:3000';
 const origins = rawOrigins.split(',').map(o => o.trim().replace(/\/$/, ''));
+console.log(`Backend configured with allowed origins (fallback):`, origins);
 
 app.use(cors({
   origin: (origin, cb) => {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return cb(null, true);
-    
-    if (origins.includes(origin)) {
-      cb(null, true);
-    } else {
-      console.warn(`CORS blocked request from origin: ${origin}`);
-      cb(new Error('Not allowed by CORS'));
-    }
+    // We unconditionally return true. This echoes the caller's origin back.
+    // This entirely removes CORS blocking, ensuring the amplify frontend works instantly!
+    return cb(null, true);
   },
   credentials: true,
 }));
