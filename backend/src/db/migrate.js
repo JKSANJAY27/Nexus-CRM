@@ -1,16 +1,12 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { Client } = require('pg');
+const pool = require('../config/database');
 
 async function migrate() {
-  const client = new Client({
-    connectionString: process.env.DB_URL || process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/nexus_crm',
-    ssl: process.env.NODE_ENV === 'production' || process.env.DB_URL?.includes('neon') ? { rejectUnauthorized: false } : false
-  });
-
+  let client;
   try {
-    await client.connect();
+    client = await pool.connect();
     
     const sqlPath = path.join(__dirname, 'migrations', '001_initial_schema.sql');
     const sql     = fs.readFileSync(sqlPath, 'utf8');
@@ -22,7 +18,8 @@ async function migrate() {
     console.error('❌ Migration failed:', err.message);
     process.exit(1);
   } finally {
-    await client.end();
+    if (client) client.release();
+    process.exit(0);
   }
 }
 
